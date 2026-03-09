@@ -4,13 +4,10 @@ requests
 beautifulsoup4
 ddgs
 
-sentence-transformers==2.6.1
-torch==2.2.2
-
-langchain-community==0.2.5
-langchain-huggingface==0.0.3
-langchain-text-splitters==0.2.2
-
-chromadb==0.4.24
+sentence-transformers
+langchain-community
+langchain-huggingface
+langchain-text-splitters
+chromadb
 
 pypdf
