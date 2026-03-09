@@ -9,3 +9,4 @@ langchain-community
 langchain-text-splitters
 chromadb
 pypdf
+langchain-huggingface
