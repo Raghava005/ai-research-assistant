@@ -1,0 +1,11 @@
+streamlit
+ddgs
+requests
+beautifulsoup4
+sentence-transformers
+numpy
+langchain
+langchain-community
+langchain-text-splitters
+chromadb
+pypdf
