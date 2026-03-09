@@ -13,7 +13,6 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from sentence_transformers import SentenceTransformer
-from langchain_ollama import ChatOllama
 
 
 # -----------------------------
@@ -31,8 +30,6 @@ web_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 rag_embedding = HuggingFaceEmbeddings(
     model_name="sentence-transformers/all-MiniLM-L6-v2"
 )
-
-llm = ChatOllama(model="llama3")
 
 db = Chroma(
     persist_directory=DB_PATH,
@@ -208,15 +205,12 @@ if st.button("Search"):
         temp_db = process_uploaded_files(uploaded_files)
 
 
-  
-
     if temp_db:
         search_db = temp_db
     else:
         search_db = db
 
 
-    # Detect generic questions
     generic_keywords = [
         "what is this paper about",
         "summarize",
@@ -228,7 +222,6 @@ if st.button("Search"):
 
     is_generic = any(k in query.lower() for k in generic_keywords)
 
-    # retrieve more chunks if generic question
     if is_generic:
         rag_results = search_db.similarity_search(query, k=8)
     else:
@@ -239,35 +232,11 @@ if st.button("Search"):
 
         context = "\n".join([doc.page_content for doc in rag_results])
 
-        if is_generic:
+        st.subheader("📄 Research Paper Results")
 
-            prompt = f"""
-            The user uploaded a research paper.
-
-            Using the context below, provide a short summary of the paper
-            explaining the main topic and key ideas.
-
-            Context:
-            {context}
-            """
-
-        else:
-
-            prompt = f"""
-            Use the context below to answer the user's question clearly.
-
-            Context:
-            {context}
-
-            Question:
-            {query}
-
-            Give a clear explanation.
-            """
-
-        response = llm.invoke(prompt)
-
-        st.write(response.content)
+        for r in rag_results:
+            st.write(r.page_content)
+            st.write("---")
 
     else:
         st.write("No strong match found in documents.")
