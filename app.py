@@ -166,7 +166,8 @@ def rerank_passages(query, docs):
 
     scores = [cosine(e, q_emb) for e in doc_embeddings]
 
-    ranked = sorted(zip(scores, docs), reverse=True)
+    # FIXED SORTING (sort only by score)
+    ranked = sorted(zip(scores, docs), key=lambda x: x[0], reverse=True)
 
     return [d for _, d in ranked[:4]]
 
