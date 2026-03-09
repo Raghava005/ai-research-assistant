@@ -19,7 +19,7 @@ from sentence_transformers import SentenceTransformer
 # CONFIG
 # -----------------------------
 
-SEARCH_RESULTS = 5
+SEARCH_RESULTS = 3
 PASSAGES_PER_PAGE = 3
 TOP_PASSAGES = 4
 TIMEOUT = 8
@@ -47,16 +47,26 @@ def process_uploaded_files(files):
 
     for file in files:
 
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        if file.size == 0:
+            continue
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
             tmp.write(file.read())
+            tmp.flush()
 
             loader = PyPDFLoader(tmp.name)
 
-            docs.extend(loader.load())
+            try:
+                docs.extend(loader.load())
+            except:
+                continue
+
+    if not docs:
+        return None
 
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=800,
-        chunk_overlap=150
+        chunk_size=500,
+        chunk_overlap=120
     )
 
     chunks = splitter.split_documents(docs)
@@ -144,6 +154,24 @@ def cosine(a,b):
 
 
 # -----------------------------
+# RERANK PASSAGES (Better accuracy)
+# -----------------------------
+
+def rerank_passages(query, docs):
+
+    texts = [d.page_content for d in docs]
+
+    doc_embeddings = web_model.encode(texts)
+    q_emb = web_model.encode([query])[0]
+
+    scores = [cosine(e, q_emb) for e in doc_embeddings]
+
+    ranked = sorted(zip(scores, docs), reverse=True)
+
+    return [d for _, d in ranked[:4]]
+
+
+# -----------------------------
 # WEB RESEARCH PIPELINE
 # -----------------------------
 
@@ -185,7 +213,7 @@ def web_research(query):
 # STREAMLIT UI
 # -----------------------------
 
-st.title("AI Research Assistant (Hybrid RAG + LLM)")
+st.title("AI Research Assistant")
 
 uploaded_files = st.file_uploader(
     "Upload research papers (PDF)",
@@ -211,47 +239,36 @@ if st.button("Search"):
         search_db = db
 
 
-    generic_keywords = [
-        "what is this paper about",
-        "summarize",
-        "summary",
-        "main idea",
-        "content of the paper",
-        "explain this paper"
-    ]
+    if query:
 
-    is_generic = any(k in query.lower() for k in generic_keywords)
-
-    if is_generic:
         rag_results = search_db.similarity_search(query, k=8)
-    else:
-        rag_results = search_db.similarity_search(query, k=3)
+
+        if rag_results:
+
+            rag_results = rerank_passages(query, rag_results)
+
+            st.subheader("📄 Answer from Research Paper")
+
+            st.write(rag_results[0].page_content)
+
+            st.subheader("📑 Relevant Sections From Paper")
+
+            for r in rag_results:
+                st.write(r.page_content[:400] + "...")
+                st.write("---")
+
+        else:
+            st.write("No strong match found in uploaded documents.")
 
 
-    if rag_results:
+        st.subheader("🌐 Related Web Resources")
 
-        context = "\n".join([doc.page_content for doc in rag_results])
+        urls = search_web(query)
 
-        st.subheader("📄 Research Paper Results")
+        if urls:
 
-        for r in rag_results:
-            st.write(r.page_content)
-            st.write("---")
+            for u in urls:
+                st.write(u)
 
-    else:
-        st.write("No strong match found in documents.")
-
-
-    st.subheader("🌐 Web Research")
-
-    web_results = web_research(query)
-
-    if web_results:
-
-        for p in web_results:
-            st.write(p["passage"])
-            st.write(p["url"])
-            st.write("---")
-
-    else:
-        st.write("No web results found.")
+        else:
+            st.write("No web resources found.")
